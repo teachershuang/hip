@@ -25,6 +25,67 @@ def test_url_normalisation():
     assert str(url) == "https://www.example.com/main"
 
 
+@pytest.mark.parametrize(
+    "scheme, port",
+    [("fTP", 21), ("HTTP", 80), ("HTTPS", 443), ("Ws", 80), ("wSs", 443)],
+)
+def test_url_case_insensitive_default_port(scheme, port):
+    url = hip.URL(f"{scheme}://www.example.com:{port}")
+    canonical = hip.URL(f"{scheme.lower()}://www.example.com")
+
+    assert url.port is None
+    assert str(url) == str(canonical)
+    assert url == canonical
+    assert hash(url) == hash(canonical)
+    assert hip.URL(f"{scheme.lower()}://www.example.com:{port}") == canonical
+
+
+def test_url_default_port_from_components():
+    url = hip.URL(scheme="HtTpS", host="www.example.com", port=443)
+    assert url.port is None
+    assert str(url) == "https://www.example.com"
+
+
+def test_url_default_port_from_copy_with():
+    original = hip.URL("http://www.example.com:443")
+    url = original.copy_with(scheme="HTTPS")
+    assert url.port is None
+    assert str(url) == "https://www.example.com"
+    assert str(original) == "http://www.example.com:443"
+
+
+@pytest.mark.parametrize(
+    "scheme, port",
+    [
+        ("FTP", 2121),
+        ("HTTP", 8080),
+        ("HTTPS", 8443),
+        ("WS", 8080),
+        ("WSS", 8443),
+        ("CUSTOM", 80),
+        ("CUSTOM", 443),
+        ("HTTP", 0),
+    ],
+)
+def test_url_non_default_ports(scheme, port):
+    url = hip.URL(f"{scheme}://www.example.com:{port}")
+    assert url.port == port
+    assert str(url) == f"{scheme.lower()}://www.example.com:{port}"
+
+
+@pytest.mark.parametrize("scheme", ["https", "HTTPS"])
+def test_url_invalid_port(scheme):
+    with pytest.raises(ValueError, match="Invalid port: 'invalid'"):
+        hip.URL(f"{scheme}://www.example.com:invalid")
+
+
+def test_url_empty_port():
+    url = hip.URL("HTTPS://www.example.com:")
+    assert url.port is None
+    assert str(url) == "https://www.example.com"
+    assert hip.URL(scheme="HTTPS", host="www.example.com", port=None) == url
+
+
 def test_url_relative():
     url = hip.URL("/README.md")
     assert str(url) == "/README.md"
